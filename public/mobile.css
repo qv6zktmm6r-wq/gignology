@@ -1,0 +1,48 @@
+/* Shared touch layouts for the marketing site and owner workspace. */
+@media(max-width:1000px){
+  html{scroll-padding-top:96px}
+  input:not([type=checkbox]):not([type=radio]),select,textarea{font-size:16px!important;min-height:44px}
+  button,.panel-heading .button{min-height:44px!important}
+  .menu-toggle{width:44px;height:44px;flex-shrink:0}
+  .motion-control{min-height:44px;min-width:92px;font-size:10px}
+  .sprint-preview__tabs button{white-space:normal;line-height:1.5}
+  .sidebar-bottom a{display:inline-flex;align-items:center;min-height:44px;padding:7px 5px}
+}
+@media(max-width:620px){
+  .hero-inner{padding-top:154px}
+  .hero-video{object-position:80% center}
+  .hero-scene{background-position:80% center}
+  .hero .eyebrow{font-size:9px;letter-spacing:.85px;white-space:normal;line-height:1.8;max-width:300px}
+  .solution-panel .mini-label,.sprint-preview__offer .eyebrow{font-size:9px;letter-spacing:1px;line-height:1.7}
+  .solution-visual figcaption>span,.about-visual-eyebrow,.about-visual .visual-tag{font-size:9px;letter-spacing:1.1px}
+  .approach-image-caption>span{font-size:9px;letter-spacing:.8px;line-height:1.8}
+  .guide-intro>p.guide-privacy,.form-disclosure{font-size:11px}
+  .scroll-cue{font-size:8px;letter-spacing:.7px}
+  .hero-bottom{gap:12px}
+  .hero-copy h1{text-shadow:0 3px 22px #010914a0}
+  .summary-grid{grid-template-columns:1fr;gap:10px}
+  .summary-grid>div{display:grid;grid-template-columns:1fr auto;align-items:center;column-gap:18px;min-height:0;padding:16px 18px}
+  .summary-grid>div>span{grid-column:1;grid-row:1;font-size:12px}
+  .summary-grid>div>strong{grid-column:2;grid-row:1/span 2;font-size:30px;line-height:1;margin:0}
+  .summary-grid>div>small{grid-column:1;grid-row:2;font-size:11px;line-height:1.6;margin:5px 0 0}
+}
+@media(max-width:620px) and (max-height:700px){
+  .hero{height:700px;min-height:700px}
+  .hero-inner{padding-top:124px}
+  .hero .eyebrow{margin-bottom:18px;font-size:8px}
+  .hero h1{margin-bottom:18px}
+  .hero-copy>p{font-size:16px;line-height:1.6}
+  .hero-copy>p.hero-description{margin-top:14px;font-size:12px;line-height:1.75}
+  .hero-actions{margin-top:22px;gap:13px}
+}
+@media(max-width:360px){
+  .nav-wrap,.container{width:calc(100% - 32px)}
+  .brand-type{font-size:17px;letter-spacing:.7px}
+  .brand-type>span{font-size:7px;letter-spacing:2px}
+  .nav-wrap{gap:12px}
+  .hero-actions .button{padding-left:17px;padding-right:17px}
+  .hero-copy>p.hero-description{max-width:260px}
+  .sprint-preview__tabs button{font-size:10px;padding-left:1px;padding-right:1px}
+  .unified-contact .field-row{grid-template-columns:1fr;gap:0}
+  .unified-contact .contact-form{padding:22px 17px}
+}
