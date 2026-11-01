@@ -14,7 +14,7 @@ const ownerHeaders={'oai-authenticated-user-id':'integration-owner','oai-authent
 const relaySecret='local-relay-verification-secret-32-bytes';
 async function request(path,{method='GET',data,owner=false,headers={}}={}){
  const init={method,headers:{...(data?{'Content-Type':'application/json',Origin:origin}:{}),...(owner?ownerHeaders:{}),...headers},body:data?JSON.stringify(data):undefined,redirect:'manual'};
- const response=process.env.TEST_ORIGIN?await fetch(origin+path,init):await handleApi(new Request(origin+path,init),{DB:database,OWNER_EMAIL:'owner@integration.test',PUBLIC_RELAY_SECRET:relaySecret});
+ const response=process.env.TEST_ORIGIN?await fetch(origin+path,init):await handleApi(new Request(origin+path,init),{DB:database,OWNER_EMAIL:'owner@integration.test',GIGNOLOGY_RELAY_SECRET:relaySecret});
  let body;try{body=await response.json();}catch{body=null;}
  return {status:response.status,body};
 }
@@ -53,7 +53,7 @@ const inbox=(await request('/api/owner/bootstrap',{owner:true})).body;assert.equ
 if(!process.env.TEST_ORIGIN){
  const publicOrigin='https://improvedwebsite.com';
  const bridgeData={...inquiry,requestKey:randomUUID()};
- const bridgeResponse=await relayPublic(new Request(publicOrigin+'/api/inquiries',{method:'POST',headers:{Origin:publicOrigin,'Content-Type':'application/json','X-Vercel-Forwarded-For':'192.0.2.31',Cookie:'owner=must-not-forward','OAI-Authenticated-User-ID':'must-not-forward'},body:JSON.stringify(bridgeData)}),'/api/inquiries',{env:{SITES_BACKEND_ORIGIN:'https://gignology-solutions.mejia1604.chatgpt.site',SITES_BACKEND_TOKEN:'test-service-token',PUBLIC_RELAY_SECRET:relaySecret},fetchImpl:async(url,init)=>{assert.equal(init.headers.Cookie,undefined);assert.equal(init.headers['OAI-Authenticated-User-ID'],undefined);assert.equal(init.redirect,'manual');return handleApi(new Request(url,init),{DB:database,PUBLIC_RELAY_SECRET:relaySecret});}});
+ const bridgeResponse=await relayPublic(new Request(publicOrigin+'/api/inquiries',{method:'POST',headers:{Origin:publicOrigin,'Content-Type':'application/json','X-Vercel-Forwarded-For':'192.0.2.31',Cookie:'owner=must-not-forward','OAI-Authenticated-User-ID':'must-not-forward'},body:JSON.stringify(bridgeData)}),'/api/inquiries',{env:{SITES_BACKEND_ORIGIN:'https://gignology-solutions.mejia1604.chatgpt.site',SITES_BACKEND_TOKEN:'test-service-token',GIGNOLOGY_RELAY_SECRET:relaySecret},fetchImpl:async(url,init)=>{assert.equal(init.headers.Cookie,undefined);assert.equal(init.headers['OAI-Authenticated-User-ID'],undefined);assert.equal(init.redirect,'manual');return handleApi(new Request(url,init),{DB:database,GIGNOLOGY_RELAY_SECRET:relaySecret});}});
  assert.equal(bridgeResponse.status,201,'public Vercel form reaches the signed Sites backend');
  const bridgeRecord=await bridgeResponse.json();assert.ok((await request('/api/owner/bootstrap',{owner:true})).body.leads.some(lead=>lead.id===bridgeRecord.id),'relayed inquiry appears in owner inbox');
  assert.equal((await relayPublic(new Request(publicOrigin+'/api/owner/bootstrap'),'/api/owner/bootstrap')).status,404,'relay never exposes owner APIs');

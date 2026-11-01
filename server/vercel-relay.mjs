@@ -62,7 +62,7 @@ async function boundedBytes(stream, limit, status, message) {
 function configuration(env) {
   const origin = env.SITES_BACKEND_ORIGIN?.trim();
   const token = env.SITES_BACKEND_TOKEN?.trim();
-  const secret = env.PUBLIC_RELAY_SECRET;
+  const secret = env.GIGNOLOGY_RELAY_SECRET;
   // A fixed origin prevents a misconfigured relay from sending credentials elsewhere.
   if (origin !== BACKEND_ORIGIN || !token || /[\r\n]/.test(token) || typeof secret !== 'string' || secret.length < 32) {
     throw new RelayError(503, 'This service is being prepared. Please email contact@gignologysolutions.com.');

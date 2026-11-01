@@ -3,6 +3,6 @@ declare namespace Cloudflare {
     DB?: D1Database;
     BUCKET?: R2Bucket;
     OWNER_EMAIL?: string;
-    PUBLIC_RELAY_SECRET?: string;
+    GIGNOLOGY_RELAY_SECRET?: string;
   }
 }

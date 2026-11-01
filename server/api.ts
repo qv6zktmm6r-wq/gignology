@@ -1,4 +1,4 @@
-export type AppEnv = {DB?:D1Database; OWNER_EMAIL?:string; PUBLIC_RELAY_SECRET?:string};
+export type AppEnv = {DB?:D1Database; OWNER_EMAIL?:string; GIGNOLOGY_RELAY_SECRET?:string};
 type RecordRow=Record<string,unknown>;
 const interests=['AI governance & strategy','Cybersecurity readiness','Compliance organization','Strategy & roadmaps','General inquiry'];
 const defaultSettings={schedulingTimezone:'America/Los_Angeles',schedulingUrl:'',discoveryIntro:'Tell us what you would like to explore and suggest a convenient time. Gignology will follow up to confirm the details.'};
@@ -31,14 +31,14 @@ async function submissionIdentity(request:Request,env:AppEnv){
  const names=['x-gignology-relay-time','x-gignology-relay-ip','x-gignology-relay-signature'];
  if(!names.some(name=>request.headers.has(name)))return request.headers.get('cf-connecting-ip')||request.headers.get('oai-authenticated-user-id')||'unknown';
  const [timestamp,ip,signature]=names.map(name=>request.headers.get(name)||'');
- if(!env.PUBLIC_RELAY_SECRET||!/^\d{10}$/.test(timestamp)||Math.abs(Date.now()/1000-Number(timestamp))>90||!ip||ip.length>45||!/^[0-9a-fA-F:.]+$/.test(ip)||!/^[0-9a-f]{64}$/.test(signature))throw new ApiError(403,'Unable to verify this form request. Please refresh and try again.');
+ if(!env.GIGNOLOGY_RELAY_SECRET||!/^\d{10}$/.test(timestamp)||Math.abs(Date.now()/1000-Number(timestamp))>90||!ip||ip.length>45||!/^[0-9a-fA-F:.]+$/.test(ip)||!/^[0-9a-f]{64}$/.test(signature))throw new ApiError(403,'Unable to verify this form request. Please refresh and try again.');
  const reader=request.clone().body?.getReader();const chunks:Uint8Array[]=[];let length=0;
  if(reader){try{while(true){const {value,done}=await reader.read();if(done)break;length+=value.byteLength;if(length>40_000){void reader.cancel().catch(()=>{});throw new ApiError(413,'This request is too large.');}chunks.push(value);}}finally{reader.releaseLock();}}
  const bytes=new Uint8Array(length);let offset=0;for(const chunk of chunks){bytes.set(chunk,offset);offset+=chunk.byteLength;}
  const hex=(data:ArrayBuffer)=>Array.from(new Uint8Array(data)).map(b=>b.toString(16).padStart(2,'0')).join('');
  const bodyHash=hex(await crypto.subtle.digest('SHA-256',bytes));
  const canonical=`${timestamp}\n${request.method}\n${new URL(request.url).pathname}\n${ip}\n${bodyHash}`;
- const key=await crypto.subtle.importKey('raw',new TextEncoder().encode(env.PUBLIC_RELAY_SECRET),{name:'HMAC',hash:'SHA-256'},false,['verify']);
+ const key=await crypto.subtle.importKey('raw',new TextEncoder().encode(env.GIGNOLOGY_RELAY_SECRET),{name:'HMAC',hash:'SHA-256'},false,['verify']);
  const signatureBytes=Uint8Array.from(signature.match(/../g)!,value=>parseInt(value,16));
  if(!await crypto.subtle.verify('HMAC',key,signatureBytes,new TextEncoder().encode(canonical)))throw new ApiError(403,'Unable to verify this form request. Please refresh and try again.');
  return ip;

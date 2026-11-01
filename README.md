@@ -60,7 +60,7 @@ Set these server-side environment variables on the Vercel project before deploym
 | --- | --- |
 | `SITES_BACKEND_ORIGIN` | `https://gignology-solutions.mejia1604.chatgpt.site` |
 | `SITES_BACKEND_TOKEN` | The existing Sites service-access bearer token |
-| `PUBLIC_RELAY_SECRET` | A random secret of at least 32 characters, also configured as a Sites runtime secret |
+| `GIGNOLOGY_RELAY_SECRET` | A random secret of at least 32 characters, also configured as a Sites runtime secret |
 
 Keep these credentials out of source control and browser assets. The token authorizes the relay to access the protected Sites service; it does not create an authenticated owner identity. `OWNER_EMAIL` belongs to the Sites backend and is not required on Vercel.
 
