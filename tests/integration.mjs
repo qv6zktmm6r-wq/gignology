@@ -1,8 +1,9 @@
 import assert from 'node:assert/strict';
-import {randomUUID} from 'node:crypto';
+import {randomUUID,createHash,createHmac} from 'node:crypto';
 import {DatabaseSync} from 'node:sqlite';
 import {readFileSync} from 'node:fs';
 import {handleApi} from '../server/api.ts';
+import {relayPublic} from '../server/vercel-relay.mjs';
 
 const origin=process.env.TEST_ORIGIN||'https://gignology.test';
 const sqlite=new DatabaseSync(':memory:');
@@ -10,9 +11,10 @@ sqlite.exec(readFileSync(new URL('../drizzle/0000_absent_freak.sql',import.meta.
 function prepared(sql,values=[]){return {bind(...bound){return prepared(sql,bound);},async first(){return sqlite.prepare(sql).get(...values)||null;},async all(){return {success:true,results:sqlite.prepare(sql).all(...values)};},async run(){return {success:true,meta:sqlite.prepare(sql).run(...values),results:[]};}};}
 const database={prepare:prepared,async batch(statements){sqlite.exec('BEGIN');try{const results=[];for(const statement of statements)results.push(await statement.all());sqlite.exec('COMMIT');return results;}catch(error){sqlite.exec('ROLLBACK');throw error;}}};
 const ownerHeaders={'oai-authenticated-user-id':'integration-owner','oai-authenticated-user-email':'owner@integration.test'};
+const relaySecret='local-relay-verification-secret-32-bytes';
 async function request(path,{method='GET',data,owner=false,headers={}}={}){
  const init={method,headers:{...(data?{'Content-Type':'application/json',Origin:origin}:{}),...(owner?ownerHeaders:{}),...headers},body:data?JSON.stringify(data):undefined,redirect:'manual'};
- const response=process.env.TEST_ORIGIN?await fetch(origin+path,init):await handleApi(new Request(origin+path,init),{DB:database,OWNER_EMAIL:'owner@integration.test'});
+ const response=process.env.TEST_ORIGIN?await fetch(origin+path,init):await handleApi(new Request(origin+path,init),{DB:database,OWNER_EMAIL:'owner@integration.test',PUBLIC_RELAY_SECRET:relaySecret});
  let body;try{body=await response.json();}catch{body=null;}
  return {status:response.status,body};
 }
@@ -48,5 +50,24 @@ assert.equal((await request(`/api/owner/case-studies/${caseId}`,{method:'PATCH',
 assert.ok(!(await request('/api/case-studies')).body.caseStudies.some(c=>c.id===caseId),'archived story removed from public API');
 assert.equal((await request('/api/owner/settings',{method:'PATCH',owner:true,data:{schedulingTimezone:'America/Los_Angeles',schedulingUrl:'javascript:alert(1)',discoveryIntro:'Test'}})).status,400,'unsafe scheduling link rejected');
 const inbox=(await request('/api/owner/bootstrap',{owner:true})).body;assert.equal(inbox.leads.find(l=>l.id===saved.body.id).status,'qualified');assert.equal(inbox.bookings.find(b=>b.id===call.body.id).status,'confirmed');
+if(!process.env.TEST_ORIGIN){
+ const publicOrigin='https://improvedwebsite.com';
+ const bridgeData={...inquiry,requestKey:randomUUID()};
+ const bridgeResponse=await relayPublic(new Request(publicOrigin+'/api/inquiries',{method:'POST',headers:{Origin:publicOrigin,'Content-Type':'application/json','X-Vercel-Forwarded-For':'192.0.2.31',Cookie:'owner=must-not-forward','OAI-Authenticated-User-ID':'must-not-forward'},body:JSON.stringify(bridgeData)}),'/api/inquiries',{env:{SITES_BACKEND_ORIGIN:'https://gignology-solutions.mejia1604.chatgpt.site',SITES_BACKEND_TOKEN:'test-service-token',PUBLIC_RELAY_SECRET:relaySecret},fetchImpl:async(url,init)=>{assert.equal(init.headers.Cookie,undefined);assert.equal(init.headers['OAI-Authenticated-User-ID'],undefined);assert.equal(init.redirect,'manual');return handleApi(new Request(url,init),{DB:database,PUBLIC_RELAY_SECRET:relaySecret});}});
+ assert.equal(bridgeResponse.status,201,'public Vercel form reaches the signed Sites backend');
+ const bridgeRecord=await bridgeResponse.json();assert.ok((await request('/api/owner/bootstrap',{owner:true})).body.leads.some(lead=>lead.id===bridgeRecord.id),'relayed inquiry appears in owner inbox');
+ assert.equal((await relayPublic(new Request(publicOrigin+'/api/owner/bootstrap'),'/api/owner/bootstrap')).status,404,'relay never exposes owner APIs');
+ const path='/api/inquiries';
+ function signed(data,ip='192.0.2.10',timestamp=String(Math.floor(Date.now()/1000))){const digest=createHash('sha256').update(JSON.stringify(data)).digest('hex');const signature=createHmac('sha256',relaySecret).update(`${timestamp}\nPOST\n${path}\n${ip}\n${digest}`).digest('hex');return {'X-Gignology-Relay-Time':timestamp,'X-Gignology-Relay-IP':ip,'X-Gignology-Relay-Signature':signature};}
+ const relayData={...inquiry,requestKey:randomUUID()};
+ assert.equal((await request(path,{method:'POST',data:relayData,headers:signed(relayData)})).status,201,'signed Vercel submission is accepted');
+ assert.equal((await request(path,{method:'POST',data:{...relayData,requestKey:randomUUID()},headers:signed(relayData)})).status,403,'relay signature binds request body');
+ assert.equal((await request(path,{method:'POST',data:relayData,headers:signed(relayData,'192.0.2.10',String(Math.floor(Date.now()/1000)-300))})).status,403,'expired relay rejected');
+ assert.equal((await request(path,{method:'POST',data:relayData,headers:{...signed(relayData),'X-Gignology-Relay-IP':'192.0.2.11'}})).status,403,'forged relay identity rejected');
+ assert.equal((await request(path,{method:'POST',data:relayData,headers:{'X-Gignology-Relay-IP':'192.0.2.10'}})).status,403,'incomplete relay rejected');
+ for(let i=0;i<10;i++){const data={...inquiry,requestKey:randomUUID()};assert.equal((await request(path,{method:'POST',data,headers:signed(data,'192.0.2.20')})).status,201);}
+ const limited={...inquiry,requestKey:randomUUID()};assert.equal((await request(path,{method:'POST',data:limited,headers:signed(limited,'192.0.2.20')})).status,429,'relay rate limit applies to original visitor');
+ const separate={...inquiry,requestKey:randomUUID()};assert.equal((await request(path,{method:'POST',data:separate,headers:signed(separate,'192.0.2.21')})).status,201,'different Vercel visitor has independent limit');
+}
 console.log('Integration passed: owner authorization, identity binding, durable inquiry/booking flows, retries, confirmation, case publishing boundaries, and URL validation.');
 sqlite.close();

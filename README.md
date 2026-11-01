@@ -47,3 +47,23 @@ For local owner testing with the starter’s loopback-only mock sign-in, create 
 ## Mobile layouts
 
 A shared `public/mobile.css` provides touch-sized controls, readable labels and form text, safe fixed-header anchor offsets, and compact spacing for short phones. Both the public site and owner workspace load it. The mobile hero uses its own optimized MP4.
+
+## Vercel public website
+
+The repository supports a Vercel public deployment while Sites continues to host the D1-backed API and protected owner workspace. `vercel.json` selects the Other framework preset, skips package installation, and runs the dependency-free `node scripts/build-vercel.mjs` build. That build copies the marketing page and public assets into `vercel-public/`. It does not build the Cloudflare/Vinext application for Vercel.
+
+The four Node functions in `api/` expose only inquiry submission, call-request submission, published case studies, and public scheduling configuration. Their shared relay in `server/vercel-relay.mjs` uses a fixed Sites backend, bounded request bodies, a request timeout, and explicit server-side credentials. Owner APIs are not proxied. Visiting `/owner` redirects to the existing Sites workspace, where ChatGPT owner sign-in is still required.
+
+Set these server-side environment variables on the Vercel project before deployment:
+
+| Variable | Value |
+| --- | --- |
+| `SITES_BACKEND_ORIGIN` | `https://gignology-solutions.mejia1604.chatgpt.site` |
+| `SITES_BACKEND_TOKEN` | The existing Sites service-access bearer token |
+| `PUBLIC_RELAY_SECRET` | A random secret of at least 32 characters, also configured as a Sites runtime secret |
+
+Keep these credentials out of source control and browser assets. The token authorizes the relay to access the protected Sites service; it does not create an authenticated owner identity. `OWNER_EMAIL` belongs to the Sites backend and is not required on Vercel.
+
+The relay signs the Unix-seconds timestamp, HTTP method, hardcoded API pathname, Vercel-provided client IP, and SHA-256 of the exact request body using HMAC-SHA256. Sites verifies this signature before using the forwarded IP for submission rate limits. Browser identity headers and cookies are never forwarded. Form submissions must originate from their exact Vercel/custom-domain origin.
+
+Run `node scripts/build-vercel.mjs` to check the static build locally. Test the API relay with isolated requests and injected `env`, `fetchImpl`, and `now` dependencies via the exported `relayPublic` helper. Direct static-file serving alone does not provide the API; integration requires Vercel Functions and the configured backend secrets. Keep the Sites deployment available: the public Vercel forms and owner workspace depend on it.

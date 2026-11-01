@@ -1,0 +1,14 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": null,
+  "installCommand": "",
+  "buildCommand": "node scripts/build-vercel.mjs",
+  "outputDirectory": "vercel-public",
+  "redirects": [
+    {
+      "source": "/owner",
+      "destination": "https://gignology-solutions.mejia1604.chatgpt.site/owner",
+      "permanent": false
+    }
+  ]
+}
